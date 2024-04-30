@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -107,7 +107,23 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, token)
+	// Create a map to hold the token and identity
+	response := map[string]string{
+		"token":    token,
+		"identity": identity,
+	}
+
+	// Convert the map to JSON
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Failed to generate JSON response", http.StatusInternalServerError)
+		log.Printf("Failed to generate JSON response: %v", err)
+		return
+	}
+
+	// Set the content type to JSON and write the response
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResponse)
 }
 
 // main is the entry point of the application.

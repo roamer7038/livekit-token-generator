@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -111,7 +112,23 @@ func TestHandler(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	if rr.Body.String() == "" {
+	responseBody := rr.Body.String()
+	if responseBody == "" {
 		t.Error("handler returned empty response")
+	}
+
+	// Check if the response is a valid JSON
+	var response map[string]string
+	err = json.Unmarshal([]byte(responseBody), &response)
+	if err != nil {
+		t.Errorf("handler returned invalid JSON: %v", err)
+	}
+
+	// Check if the response contains a token and an identity
+	if _, ok := response["token"]; !ok {
+		t.Error("handler response does not contain a token")
+	}
+	if _, ok := response["identity"]; !ok {
+		t.Error("handler response does not contain an identity")
 	}
 }
