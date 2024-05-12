@@ -53,6 +53,55 @@ env $(cat ../../.env | xargs) ./livekit-token-generator
 
 This compiles the main.go file into an executable and runs it, pulling environment variables from your `.env` file.
 
+### How to Use the Application
+
+This application provides a simple HTTP interface to generate LiveKit tokens. To generate a token, you need to specify the room name and the identity (user ID) as URL parameters. Here's how you can request a token:
+
+1. **Request a Token:**
+
+   Use `curl` or any other tool to make an HTTP request. Provide the `room` and `identity` as query parameters. Here are examples of how to do this:
+
+   **Without HTTPS:**
+
+   ```bash
+   curl "http://localhost:8080?room=your_room_name&identity=your_identity"
+   ```
+
+   **With HTTPS (if configured):**
+
+   ```bash
+   curl "https://localhost:8080?room=your_room_name&identity=your_identity"
+   ```
+
+   Replace `localhost` with the appropriate IP address or hostname if you are accessing a server deployed elsewhere.
+
+2. **Response:**
+
+   The server will respond with a JSON object containing the `token` and `identity`. Here's an example of the response:
+
+   ```json
+   {
+     "token": "generated_token_here",
+     "identity": "your_identity"
+   }
+   ```
+
+   Use this token for authenticating with LiveKit to join the specified room.
+
+### Example of Generating a Token
+
+Here is a practical example using `curl`:
+
+```bash
+curl "http://localhost:8080?room=DemoRoom&identity=JohnDoe"
+```
+
+This command will generate a token for John Doe to join the DemoRoom. You will receive a response in JSON format with the token you need to join the room.
+
+### Error Handling
+
+If required parameters are missing, the server will return an HTTP 400 error. Make sure to include both `room` and `identity` parameters in your request.
+
 ## Environment Variables
 
 Server configuration and token settings are controlled by environment variables:
