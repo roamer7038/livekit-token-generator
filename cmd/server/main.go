@@ -12,6 +12,17 @@ import (
 
 // handler is the HTTP handler for generating join tokens.
 func handler(w http.ResponseWriter, r *http.Request) {
+	// Set the CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	room := r.URL.Query().Get("room")
 	identity := r.URL.Query().Get("identity")
 
