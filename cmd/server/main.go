@@ -12,10 +12,11 @@ import (
 
 // handler is the HTTP handler for generating join tokens.
 func handler(w http.ResponseWriter, r *http.Request) {
-	// Set the CORS headers
+	// Set the headers for CORS, content type, and allowed methods
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
 
 	// Handle preflight requests
 	if r.Method == http.MethodOptions {
@@ -68,8 +69,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set the content type to JSON and write the response
-	w.Header().Set("Content-Type", "application/json")
+	// Write the JSON response
 	w.Write(jsonResponse)
 
 	log.Printf("Token generated for room %s and identity %s", room, identity)
