@@ -2,21 +2,40 @@ package main
 
 import (
 	"encoding/json"
-	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/roamer7038/livekit-token-generator/pkg/token"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
-// handler is the HTTP handler for generating join tokens.
-func handler(w http.ResponseWriter, r *http.Request) {
+// healthHandler handles health check requests.
+func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Set the headers for CORS, content type, and allowed methods
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-	w.Header().Set("Content-Type", "application/json")
+
+	// Handle preflight requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+	log.Debug().Str("method", r.Method).Str("path", r.URL.Path).Msg("Health check")
+}
+
+// tokenHandler handles token generation requests.
+func tokenHandler(w http.ResponseWriter, r *http.Request) {
+	// Set the headers for CORS, content type, and allowed methods
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 	// Handle preflight requests
 	if r.Method == http.MethodOptions {
@@ -29,7 +48,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	if room == "" || identity == "" {
 		http.Error(w, "Room and identity parameters are required", http.StatusBadRequest)
-		log.Printf("Room and identity parameters are required")
+		log.Warn().Msg("Room and identity parameters are required")
 		return
 	}
 
@@ -48,16 +67,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		Grant:     grant,
 	}
 
-	token, err := token.GetJoinToken(params)
+	joinToken, err := token.GetJoinToken(params)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-		log.Printf("Failed to generate token: %v", err)
+		log.Error().Err(err).Msg("Failed to generate token")
 		return
 	}
 
 	// Create a map to hold the token and identity
 	response := map[string]string{
-		"token":    token,
+		"token":    joinToken,
 		"identity": identity,
 	}
 
@@ -65,14 +84,15 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, "Failed to generate JSON response", http.StatusInternalServerError)
-		log.Printf("Failed to generate JSON response: %v", err)
+		log.Error().Err(err).Msg("Failed to generate JSON response")
 		return
 	}
 
-	// Write the JSON response
+	// Set content type before writing the response
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
 
-	log.Printf("Token generated for room %s and identity %s", room, identity)
+	log.Info().Str("room", room).Str("identity", identity).Str("remote_addr", r.RemoteAddr).Msg("Token generated")
 }
 
 // getEnvAsBool retrieves an environment variable and parses it as a boolean.
@@ -89,47 +109,76 @@ func getEnvAsBool(name string, defaultVal bool) bool {
 	return val
 }
 
-// main is the entry point of the application.
-func main() {
-	// Check if the required environment variables are set
-	if os.Getenv("LIVEKIT_API_KEY") == "" || os.Getenv("LIVEKIT_API_SECRET") == "" {
-		log.Fatal("LIVEKIT_API_KEY and LIVEKIT_API_SECRET environment variables are required")
+// getLocalIP retrieves the local IP address of the server.
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "unknown"
 	}
 
-	// Retrieve the port from the environment variables
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil {
+				return ipNet.IP.String()
+			}
+		}
+	}
+	return "unknown"
+}
+
+// main is the entry point of the application.
+func main() {
+	// Set log level based on environment variable
+	logLevel := os.Getenv("LOG_LEVEL")
+	switch logLevel {
+	case "debug":
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case "info":
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case "warn":
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case "error":
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	default:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+
+	apiKey := os.Getenv("LIVEKIT_API_KEY")
+	apiSecret := os.Getenv("LIVEKIT_API_SECRET")
+	if apiKey == "" || apiSecret == "" {
+		log.Fatal().Msg("LIVEKIT_API_KEY and LIVEKIT_API_SECRET environment variables are required")
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Retrieve the TLS configuration from the environment variables
 	tls := getEnvAsBool("HTTPS", false)
 
-	// Register the handler function
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/", healthHandler)
+	http.HandleFunc("/token", tokenHandler)
 
-	ip := "localhost"
+	ip := getLocalIP()
+	log.Debug().Str("ip", ip).Msg("Local IP address")
 
 	if tls {
-		// Check if the required environment variables for TLS are set
 		certFile := os.Getenv("SSL_CRT_FILE")
 		keyFile := os.Getenv("SSL_KEY_FILE")
 		if certFile == "" || keyFile == "" {
-			log.Fatal("SSL_CRT_FILE and SSL_KEY_FILE environment variables are required for HTTPS")
+			log.Fatal().Msg("SSL_CRT_FILE and SSL_KEY_FILE environment variables are required for HTTPS")
 		}
 
-		// Start the server with TLS
-		log.Printf("Access the server at https://%s:%s", ip, port)
-		log.Printf("For example, https://%s:%s?room=room1&identity=user1", ip, port)
+		log.Info().Str("address", "https://"+ip+":"+port).Msg("Access the server")
+		log.Info().Str("example", "https://"+ip+":"+port+"/token?room=room1&identity=user1").Msg("For example")
 		if err := http.ListenAndServeTLS(":"+port, certFile, keyFile, nil); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+			log.Fatal().Err(err).Msg("Failed to start server")
 		}
 	} else {
-		// Start the server without TLS
-		log.Printf("Access the server at http://%s:%s", ip, port)
-		log.Printf("For example, http://%s:%s?room=room1&identity=user1", ip, port)
+		log.Info().Str("address", "http://"+ip+":"+port).Msg("Access the server")
+		log.Info().Str("example", "http://"+ip+":"+port+"/token?room=room1&identity=user1").Msg("For example")
 		if err := http.ListenAndServe(":"+port, nil); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+			log.Fatal().Err(err).Msg("Failed to start server")
 		}
 	}
 }
