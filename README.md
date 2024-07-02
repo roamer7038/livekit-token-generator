@@ -64,13 +64,13 @@ This application provides a simple HTTP interface to generate LiveKit tokens. To
    **Without HTTPS:**
 
    ```bash
-   curl "http://localhost:8080?room=your_room_name&identity=your_identity"
+   curl "http://localhost:8080/token?room=your_room_name&identity=your_identity"
    ```
 
    **With HTTPS (if configured):**
 
    ```bash
-   curl "https://localhost:8080?room=your_room_name&identity=your_identity"
+   curl "https://localhost:8080/token?room=your_room_name&identity=your_identity"
    ```
 
    Replace `localhost` with the appropriate IP address or hostname if you are accessing a server deployed elsewhere.
@@ -82,7 +82,8 @@ This application provides a simple HTTP interface to generate LiveKit tokens. To
    ```json
    {
      "token": "generated_token_here",
-     "identity": "your_identity"
+     "identity": "your_identity",
+     "room": "your_room_name"
    }
    ```
 
@@ -93,7 +94,7 @@ This application provides a simple HTTP interface to generate LiveKit tokens. To
 Here is a practical example using `curl`:
 
 ```bash
-curl "http://localhost:8080?room=DemoRoom&identity=JohnDoe"
+curl "http://localhost:8080/token?room=DemoRoom&identity=JohnDoe"
 ```
 
 This command will generate a token for John Doe to join the DemoRoom. You will receive a response in JSON format with the token you need to join the room.
@@ -126,6 +127,7 @@ Server configuration and token settings are controlled by environment variables:
 | HIDDEN                  | Enable hidden mode              | false         |
 | RECORDER                | Enable recorder function        | false         |
 | AGENT                   | Enable agent mode               | false         |
+| LOG_LEVEL               | Log level (debug, info, warn)   | info          |
 
 More information on these settings can be found in the [LiveKit documentation](https://docs.livekit.io/realtime/concepts/authentication/).
 
