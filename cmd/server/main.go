@@ -78,6 +78,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]string{
 		"token":    joinToken,
 		"identity": identity,
+		"room":     room,
 	}
 
 	// Convert the map to JSON
@@ -160,7 +161,7 @@ func main() {
 	http.HandleFunc("/token", tokenHandler)
 
 	ip := getLocalIP()
-	log.Debug().Str("ip", ip).Msg("Local IP address")
+	log.Debug().Msgf("Local IP address: %s", ip)
 
 	if tls {
 		certFile := os.Getenv("SSL_CRT_FILE")
@@ -169,14 +170,14 @@ func main() {
 			log.Fatal().Msg("SSL_CRT_FILE and SSL_KEY_FILE environment variables are required for HTTPS")
 		}
 
-		log.Info().Str("address", "https://"+ip+":"+port).Msg("Access the server")
-		log.Info().Str("example", "https://"+ip+":"+port+"/token?room=room1&identity=user1").Msg("For example")
+		log.Info().Msgf("Access the server at https://%s:%s", ip, port)
+		log.Info().Msgf("For example, https://%s:%s/token?room=room1&identity=user1", ip, port)
 		if err := http.ListenAndServeTLS(":"+port, certFile, keyFile, nil); err != nil {
 			log.Fatal().Err(err).Msg("Failed to start server")
 		}
 	} else {
-		log.Info().Str("address", "http://"+ip+":"+port).Msg("Access the server")
-		log.Info().Str("example", "http://"+ip+":"+port+"/token?room=room1&identity=user1").Msg("For example")
+		log.Info().Msgf("Access the server at http://%s:%s", ip, port)
+		log.Info().Msgf("For example, http://%s:%s/token?room=room1&identity=user1", ip, port)
 		if err := http.ListenAndServe(":"+port, nil); err != nil {
 			log.Fatal().Err(err).Msg("Failed to start server")
 		}
