@@ -112,19 +112,33 @@ func getEnvAsBool(name string, defaultVal bool) bool {
 
 // getLocalIP retrieves the local IP address of the server.
 func getLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
+	interfaces, err := net.Interfaces()
 	if err != nil {
-		return "unknown"
+		log.Fatal().Err(err).Msg("Failed to get network interfaces")
 	}
 
-	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
-			if ipNet.IP.To4() != nil {
-				return ipNet.IP.String()
+	for _, iface := range interfaces {
+		// exclude loopback and down interfaces
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			// exclude loopback and IPv6 addresses
+			if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+				if ipNet.IP.To4() != nil {
+					return ipNet.IP.String()
+				}
 			}
 		}
 	}
-	return "unknown"
+
+	return ""
 }
 
 // main is the entry point of the application.
