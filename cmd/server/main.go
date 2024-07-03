@@ -27,7 +27,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
-	log.Debug().Str("method", r.Method).Str("path", r.URL.Path).Msg("Health check")
+	log.Debug().Str("method", r.Method).Str("path", r.URL.Path).Str("remote_addr", r.RemoteAddr).Msg("Health check")
 }
 
 // tokenHandler handles token generation requests.
@@ -93,7 +93,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
 
-	log.Info().Str("room", room).Str("identity", identity).Str("remote_addr", r.RemoteAddr).Msg("Token generated")
+	log.Info().Str("method", r.Method).Str("path", r.URL.Path).Str("remote_addr", r.RemoteAddr).Str("room", room).Str("identity", identity).Msg("Token generated")
 }
 
 // getEnvAsBool retrieves an environment variable and parses it as a boolean.
